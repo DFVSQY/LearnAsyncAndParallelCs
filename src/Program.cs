@@ -10,6 +10,11 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
             Console.WriteLine(task.IsCompleted);
 
+            // 阻塞当前主线程，直到任务执行完毕
+            task.Wait();
+
+            Console.WriteLine(task.IsCompleted);
+
             // task运行的都是后台线程，当主线程运行完毕时后台线程也会随之结束，
             // 所以需要阻塞主线程，避免主线程关闭。
             Console.ReadLine();

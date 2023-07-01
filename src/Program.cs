@@ -7,7 +7,12 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main(string[] args)
         {
             Task<int> task = Task.Run(Run);
-            var waiter = task.GetAwaiter();
+
+            /*
+            使用ConfigureAwait (false)来告诉指明不需要恢复到原来的同步上下文，
+            而是可以在任何可用的线程上继续执行后续的代码。
+            */
+            var waiter = task.ConfigureAwait(false).GetAwaiter();
 
             /* 不一定在主线程执行 */
             waiter.OnCompleted(() =>

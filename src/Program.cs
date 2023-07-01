@@ -4,23 +4,21 @@ namespace MyApp // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
-        private static ManualResetEvent signal = new ManualResetEvent(false);
-
         static void Main(string[] args)
         {
-            Thread thread = new Thread(Run);
-            thread.Start();
+            Task task = Task.Run(Run);
 
-            Thread.Sleep(2000);
-            signal.Set();
+            Console.WriteLine(task.IsCompleted);
+
+            // task运行的都是后台线程，当主线程运行完毕时后台线程也会随之结束，
+            // 所以需要阻塞主线程，避免主线程关闭。
+            Console.ReadLine();
         }
 
         static void Run()
         {
-            Console.WriteLine("start wait one signal");
-            signal.WaitOne();
-            signal.Dispose();
-            Console.WriteLine("finish one signal");
+            Console.WriteLine("start run task");
+            Console.WriteLine("finish run task");
         }
     }
 }

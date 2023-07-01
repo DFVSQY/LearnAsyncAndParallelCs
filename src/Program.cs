@@ -6,11 +6,17 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main(string[] args)
         {
-            Task task = Task.Run(Run);
+            /*
+            默认情况下，CLR会将任务运行在线程池线程上，这种线程非常适合执行短小的计算密集的任务。
+            如果要执行长时间阻塞的操作（如上面的例子）则可以按照以下方式避免使用线程池线程。
+
+            在线程池上运行一个长时间执行的任务并不会造成问题；
+            但是如果要并行运行多个长时间运行的任务（特别是会造成阻塞的任务），则会对性能造成影响。
+            */
+            Task task = Task.Factory.StartNew(LongRun, TaskCreationOptions.LongRunning);
 
             Console.WriteLine(task.IsCompleted);
 
-            // 阻塞当前主线程，直到任务执行完毕
             task.Wait();
 
             Console.WriteLine(task.IsCompleted);
@@ -20,7 +26,7 @@ namespace MyApp // Note: actual namespace depends on the project name.
             Console.ReadLine();
         }
 
-        static void Run()
+        static void LongRun()
         {
             Console.WriteLine("start run task");
             Console.WriteLine("finish run task");

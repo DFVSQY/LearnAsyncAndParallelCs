@@ -9,6 +9,7 @@ namespace MyApp // Note: actual namespace depends on the project name.
             Task<int> task = Task.Run(Run);
             var waiter = task.GetAwaiter();
 
+            /* 不一定在主线程执行 */
             waiter.OnCompleted(() =>
             {
                 /*
@@ -20,17 +21,17 @@ namespace MyApp // Note: actual namespace depends on the project name.
                 对于非泛型任务，GetResult的返回值为void，而这个函数的用途完全是为了重新抛出异常。
                 */
                 int result = waiter.GetResult();
-                Console.WriteLine("result:" + result.ToString());
+                Console.WriteLine("result:" + result.ToString() + " processorID:" + Thread.GetCurrentProcessorId().ToString());
             });
 
-            Console.WriteLine("iscompleted:" + task.IsCompleted);
+            Console.WriteLine("iscompleted:" + task.IsCompleted + " processorID:" + Thread.GetCurrentProcessorId().ToString());
 
             Console.ReadLine();
         }
 
         static int Run()
         {
-            Console.WriteLine("start run task");
+            Console.WriteLine("start run task, processorID:" + Thread.GetCurrentProcessorId().ToString());
             int sum = 0;
             for (int i = 1; i <= 100; i++) sum += i;
             Console.WriteLine("finish run task");

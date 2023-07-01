@@ -7,36 +7,34 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main(string[] args)
         {
             Task<int> task = Task.Run(Run);
+            var waiter = task.GetAwaiter();
 
-            /*
-            任务可以方便地传播异常，这和线程是截然不同的。
-            因此，如果任务中的代码抛出一个未处理异常（换言之，如果你的任务出错（fault）），
-            那么调用Wait()或者访问Task<TResult>的Result属性时，该异常就会被重新抛出。
-            */
-            try
+            waiter.OnCompleted(() =>
             {
                 /*
-                通过查询Result属性就可以获得任务的返回值。
-                如果当前任务还没有执行完毕，则调用该属性会阻塞当前线程，直至任务结束。
+                如果先导任务出现错误，则当延续代码调用awaiter.GetResult()的时候将会重新抛出异常。
+                当然我们也可以访问先导任务的Result属性而不是调用GetResult方法。
+                但如果先导任务失败，则调用GetResult方法就可以直接得到原始的异常，而不是包装后的AggregateException。
+                因此，这种方式可以实现更加简洁清晰的catch代码块。
+                
+                对于非泛型任务，GetResult的返回值为void，而这个函数的用途完全是为了重新抛出异常。
                 */
-                int result = task.Result;
+                int result = waiter.GetResult();
                 Console.WriteLine("result:" + result.ToString());
-            }
-            catch (AggregateException e)
-            {
-                Console.WriteLine(e.Message);
-            }
+            });
 
-            Console.WriteLine(task.IsFaulted);
+            Console.WriteLine("iscompleted:" + task.IsCompleted);
+
+            Console.ReadLine();
         }
 
         static int Run()
         {
             Console.WriteLine("start run task");
-            int result = 100, div = 0;
-            result = result / div;
+            int sum = 0;
+            for (int i = 1; i <= 100; i++) sum += i;
             Console.WriteLine("finish run task");
-            return result;
+            return sum;
         }
     }
 }

@@ -19,53 +19,31 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static async void Run()
         {
             Console.WriteLine("start run, processorID:{0}", Thread.GetCurrentProcessorId());
-            // int answer = await PrintAnswer();
-
-            Task<int> task1 = PrintAnswer();
-            Task<int> task2 = PrintAnswer();
-
-            await task1;
-            await task2;
-
-            Console.WriteLine("finish run, answer1:{0}, answer2:{1}, processorID:{2}", task1.GetAwaiter().GetResult(), task2.GetAwaiter().GetResult(), Thread.GetCurrentProcessorId());
+            int answer = await PrintAnswer1();
+            Console.WriteLine("finish run, answer2:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
         }
 
         /// <summary>
-        /// 异步函数的方法体内并不需要显式返回一个任务。
-        /// 编译器会负责生成任务，并在方法完成之前或出现未处理的异常时触发任务。
-        /// 这样就很容易创建异步调用链。
-        /// 编译器会展开异步函数，使用TaskCompletionSource创建一个任务，并将Task返回。
-        /// 其展开版本类似于PrintAnswerExpand函数。
-        /// 异步函数中若方法体返回TResult则函数的返回值为Task<TResult>
+        /// 编写从不等待的异步方法也是合法的，编译器会相应的生成警告信息。
+        /// 另一种方式是使用Task.FromResult方法，这个方法会返回一个已经结束了的任务，
+        /// 具体实现参考PrintAnswer1函数
         /// </summary>
         static async Task<int> PrintAnswer()
         {
             Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
-            await Task.Delay(5000);
             int answer = Thread.GetCurrentProcessorId();
             Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
+
             return answer;
         }
 
-        /// <summary>
-        /// PrintAnswer的编译器展开版本
-        /// </summary>
-        static Task<int> PrintAnswerExpand()
+        static Task<int> PrintAnswer1()
         {
-            var tcs = new TaskCompletionSource<int>();
-            var awaiter = Task.Delay(5000).GetAwaiter();
-            awaiter.OnCompleted(() =>
-            {
-                try
-                {
-                    awaiter.GetResult();     // Re-throw any exceptions
-                    int answer = 5 * 12;
-                    Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
-                    tcs.SetResult(answer);
-                }
-                catch (Exception ex) { tcs.SetException(ex); }
-            });
-            return tcs.Task;
+            Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
+            int answer = Thread.GetCurrentProcessorId();
+            Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
+
+            return Task.FromResult<int>(answer);
         }
     }
 }

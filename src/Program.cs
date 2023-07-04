@@ -9,42 +9,54 @@ namespace MyApp // Note: actual namespace depends on the project name.
         {
             Console.WriteLine("main thread processorID:{0}", Thread.GetCurrentProcessorId());
 
-            Go();
+            Run();
 
             Console.WriteLine("waiting task, processorID:{0}", Thread.GetCurrentProcessorId());
 
             Console.ReadLine();
         }
 
-        static async void Go()
+        static async void Run()
         {
-            string[] urls = new string[]{
-                "https://www.baidu.com/",
-                "https://www.sohu.com/",
-                "https://www.sina.com.cn/",
-            };
-
-            try
-            {
-                Console.WriteLine("start go, processorID:{0}", Thread.GetCurrentProcessorId());
-                foreach (string url in urls)
-                {
-                    WebClient webClient = new WebClient();
-                    byte[] data = await webClient.DownloadDataTaskAsync(url);
-                    Console.WriteLine("url:{0} len:{1} processorID:{2}", url, data.Length, Thread.GetCurrentProcessorId());
-                }
-                Console.WriteLine("finish go, processorID:{0}", Thread.GetCurrentProcessorId());
-            }
-            catch (WebException e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            finally
-            {
-                Console.WriteLine("finally, processorID:{0}", Thread.GetCurrentProcessorId());
-            }
+            Console.WriteLine("start run, processorID:{0}", Thread.GetCurrentProcessorId());
+            await PrintAnswer();
+            Console.WriteLine("finish run, processorID:{0}", Thread.GetCurrentProcessorId());
         }
 
+        /// <summary>
+        /// 异步函数的方法体内并不需要显式返回一个任务。
+        /// 编译器会负责生成任务，并在方法完成之前或出现未处理的异常时触发任务。
+        /// 这样就很容易创建异步调用链。
+        /// 编译器会展开异步函数，使用TaskCompletionSource创建一个任务，并将Task返回。
+        /// 其展开版本类似于PrintAnswerExpand函数。
+        /// </summary>
+        static async Task PrintAnswer()
+        {
+            Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
+            await Task.Delay(5000);
+            int answer = 5 * 12;
+            Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
+        }
 
+        /// <summary>
+        /// PrintAnswer的编译器展开版本
+        /// </summary>
+        static Task PrintAnswerExpand()
+        {
+            var tcs = new TaskCompletionSource<object>();
+            var awaiter = Task.Delay(5000).GetAwaiter();
+            awaiter.OnCompleted(() =>
+            {
+                try
+                {
+                    awaiter.GetResult();     // Re-throw any exceptions
+                    int answer = 5 * 12;
+                    Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
+                    tcs.SetResult(null);
+                }
+                catch (Exception ex) { tcs.SetException(ex); }
+            });
+            return tcs.Task;
+        }
     }
 }

@@ -19,8 +19,15 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static async void Run()
         {
             Console.WriteLine("start run, processorID:{0}", Thread.GetCurrentProcessorId());
-            int answer = await PrintAnswer();
-            Console.WriteLine("finish run, answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
+            // int answer = await PrintAnswer();
+
+            Task<int> task1 = PrintAnswer();
+            Task<int> task2 = PrintAnswer();
+
+            await task1;
+            await task2;
+
+            Console.WriteLine("finish run, answer1:{0}, answer2:{1}, processorID:{2}", task1.GetAwaiter().GetResult(), task2.GetAwaiter().GetResult(), Thread.GetCurrentProcessorId());
         }
 
         /// <summary>
@@ -35,7 +42,7 @@ namespace MyApp // Note: actual namespace depends on the project name.
         {
             Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
             await Task.Delay(5000);
-            int answer = 5 * 12;
+            int answer = Thread.GetCurrentProcessorId();
             Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
             return answer;
         }

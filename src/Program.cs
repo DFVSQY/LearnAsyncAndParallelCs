@@ -5,45 +5,36 @@ namespace MyApp // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.WriteLine("main thread processorID:{0}", Thread.GetCurrentProcessorId());
 
-            Run();
+            // CancellationToken cancellationToken = new CancellationToken();
 
-            Console.WriteLine("waiting task, processorID:{0}", Thread.GetCurrentProcessorId());
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(6000);
+            await Run(cancellationTokenSource.Token);
 
-            Console.ReadLine();
+            Console.WriteLine("all finish, processorID:{0}", Thread.GetCurrentProcessorId());
         }
 
-        static async void Run()
+        static async Task Run(CancellationToken cancellation)
         {
-            Console.WriteLine("start run, processorID:{0}", Thread.GetCurrentProcessorId());
-            int answer = await PrintAnswer1();
-            Console.WriteLine("finish run, answer2:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
-        }
-
-        /// <summary>
-        /// 编写从不等待的异步方法也是合法的，编译器会相应的生成警告信息。
-        /// 另一种方式是使用Task.FromResult方法，这个方法会返回一个已经结束了的任务，
-        /// 具体实现参考PrintAnswer1函数
-        /// </summary>
-        static async Task<int> PrintAnswer()
-        {
-            Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
-            int answer = Thread.GetCurrentProcessorId();
-            Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
-
-            return answer;
-        }
-
-        static Task<int> PrintAnswer1()
-        {
-            Console.WriteLine("start printanswer, processorID:{0}", Thread.GetCurrentProcessorId());
-            int answer = Thread.GetCurrentProcessorId();
-            Console.WriteLine("answer:{0}, processorID:{1}", answer, Thread.GetCurrentProcessorId());
-
-            return Task.FromResult<int>(answer);
+            try
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    Console.WriteLine("i:{0} processorID:{1}", i, Thread.GetCurrentProcessorId());
+                    await Task.Delay(5000, cancellation);
+                }
+            }
+            catch (OperationCanceledException e)
+            {
+                Console.WriteLine("msg:{0} processorID:{1}", e.Message, Thread.GetCurrentProcessorId());
+            }
+            finally
+            {
+                Console.WriteLine("run finally, processorID:{0}", Thread.GetCurrentProcessorId());
+            }
         }
     }
 }

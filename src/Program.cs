@@ -11,16 +11,21 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
             try
             {
-                Task<int> task = Task.Run<int>(async () =>
+                Task<int> task1 = Task.Run<int>(async () =>
                 {
                     await Task.Delay(5000);
                     return 5;
                 });
 
-                CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(1000);
-                int result = await task.WithCancellation<int>(cancellationTokenSource.Token);
+                Task<int> task2 = Task.Run<int>(async () =>
+                {
+                    await Task.Delay(1000);
+                    throw new Exception("throw exception!");
+                });
 
-                Console.WriteLine("result:{0} now:{1} processorID:{2}", result, DateTime.Now, Thread.GetCurrentProcessorId());
+                int[] results = await TaskExt.WhenAllOrError<int>(task1, task2);
+
+                Console.WriteLine("result's num:{0} now:{1} processorID:{2}", results.Length, DateTime.Now, Thread.GetCurrentProcessorId());
             }
             catch (AggregateException e)
             {
@@ -62,6 +67,25 @@ namespace MyApp // Note: actual namespace depends on the project name.
                     tcs.TrySetResult(ant.Result);
             });
             return tcs.Task;
+        }
+
+        /*
+        以下的组合器作用与WhenAll类似，不同点在于只要有一个任务出现错误，那么最终任务也会立即出错。
+        */
+        public static async Task<TResult[]> WhenAllOrError<TResult>(params Task<TResult>[] tasks)
+        {
+            var killJoy = new TaskCompletionSource<TResult[]>();
+            foreach (var task in tasks)
+            {
+                task.ContinueWith(ant =>
+                {
+                    if (ant.IsCanceled)
+                        killJoy.TrySetCanceled();
+                    else if (ant.IsFaulted)
+                        killJoy.TrySetException(ant.Exception.InnerException);
+                });
+            }
+            return await await Task.WhenAny(killJoy.Task, Task.WhenAll(tasks));
         }
     }
 }

@@ -7,42 +7,30 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("main thread processorID:{0}", Thread.GetCurrentProcessorId());
+            Console.WriteLine("start, now:{0} processorID:{1}", DateTime.Now, Thread.GetCurrentProcessorId());
 
-            /*
-            Progress<T>类的构造器可以接受一个Action<T>委托并对其进行包装。
-            (Progress<T>还有一个ProgressChanged事件。我们可以订阅这个事件而无须在构造函数中传入一个委托)
-            在Progress<int>实例化时，如果拥有同步上下文，该类就会捕获同步上下文。
-            当Run调用Report方法时，该对象就会使用同步上下文调用委托。
-            */
-            Progress<int> progress = new Progress<int>((value) =>
-            {
-                Console.WriteLine("prg:{0}% processorID:{1}", value, Thread.GetCurrentProcessorId());
-            });
+            Task<int> task = await Task.WhenAny(Delay1(), Delay2(), Delay3());
+            int result = await task;
 
-            await Run(progress);
-
-            Console.WriteLine("processorID:{0}", Thread.GetCurrentProcessorId());
-
-            Console.ReadLine();
+            Console.WriteLine("finish, result:{0} now:{1} processorID:{2}", result, DateTime.Now, Thread.GetCurrentProcessorId());
         }
 
-        static Task Run(IProgress<int> progress)
+        static async Task<int> Delay1()
         {
-            return Task.Run(() =>
-            {
-                Console.WriteLine("start run, processorID:{0}", Thread.GetCurrentProcessorId());
-                for (int i = 1; i <= 1000; i++)
-                {
-                    if (i % 10 == 0)
-                    {
-                        int prg = i / 10;
-                        Console.WriteLine("value:{0} processorID:{1}", prg, Thread.GetCurrentProcessorId());
-                        progress.Report(prg);
-                    }
-                }
-                Console.WriteLine("finish run, processorID:{0}", Thread.GetCurrentProcessorId());
-            });
+            await Task.Delay(1000);
+            return 1;
+        }
+
+        static async Task<int> Delay2()
+        {
+            await Task.Delay(2000);
+            return 2;
+        }
+
+        static async Task<int> Delay3()
+        {
+            await Task.Delay(3000);
+            return 3;
         }
     }
 }

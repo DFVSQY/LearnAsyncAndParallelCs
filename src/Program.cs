@@ -17,7 +17,8 @@ namespace MyApp // Note: actual namespace depends on the project name.
                     return 5;
                 });
 
-                int result = await task.WithTimeout<int>(1000);
+                CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(1000);
+                int result = await task.WithCancellation<int>(cancellationTokenSource.Token);
 
                 Console.WriteLine("result:{0} now:{1} processorID:{2}", result, DateTime.Now, Thread.GetCurrentProcessorId());
             }
@@ -44,6 +45,23 @@ namespace MyApp // Note: actual namespace depends on the project name.
             Task winner = await (Task.WhenAny(task, Task.Delay(timeout)));
             if (winner != task) throw new TimeoutException();
             return await task;    // Unwrap result/re-throw
+        }
+
+        public static Task<TResult> WithCancellation<TResult>(this Task<TResult> task, CancellationToken cancelToken)
+        {
+            var tcs = new TaskCompletionSource<TResult>();
+            var reg = cancelToken.Register(() => tcs.TrySetCanceled());
+            task.ContinueWith(ant =>
+            {
+                reg.Dispose();
+                if (ant.IsCanceled)
+                    tcs.TrySetCanceled();
+                else if (ant.IsFaulted)
+                    tcs.TrySetException(ant.Exception.InnerException);
+                else
+                    tcs.TrySetResult(ant.Result);
+            });
+            return tcs.Task;
         }
     }
 }

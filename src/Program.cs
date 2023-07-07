@@ -9,38 +9,41 @@ namespace MyApp // Note: actual namespace depends on the project name.
         {
             Console.WriteLine("start, now:{0} processorID:{1}", DateTime.Now, Thread.GetCurrentProcessorId());
 
-            /*
-            Task.WhenAll只在所有的任务完成之后才会完成，即使中间出现了错误也一样。
-            如果多个任务发生了错误，那么这些异常会组合到任务的AggregateException中
-            （这也是AggregateException真正发挥作用的时候，你可以从中得到所有的异常）。
-            */
             try
             {
-                int[] results = await Task.WhenAll(Delay1(), Delay2(), Delay3());
-                Console.WriteLine("finish, result's num:{0} now:{1} processorID:{2}", results.Length, DateTime.Now, Thread.GetCurrentProcessorId());
+                Task<int> task = Task.Run<int>(async () =>
+                {
+                    await Task.Delay(5000);
+                    return 5;
+                });
+
+                int result = await task.WithTimeout<int>(1000);
+
+                Console.WriteLine("result:{0} now:{1} processorID:{2}", result, DateTime.Now, Thread.GetCurrentProcessorId());
             }
             catch (AggregateException e)
             {
-                Console.WriteLine("exception num:{0}", e.InnerExceptions.Count);
+                Console.WriteLine("start print all exceptions");
+                foreach (var ie in e.InnerExceptions)
+                {
+                    Console.WriteLine(ie.Message);
+                }
+                Console.WriteLine("finish print all exceptions");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("exception msg:{0}, type:{1}", e.Message, e.GetType());
             }
         }
+    }
 
-        static async Task<int> Delay1()
+    internal static class TaskExt
+    {
+        public async static Task<TResult> WithTimeout<TResult>(this Task<TResult> task, int timeout)
         {
-            await Task.Delay(1000);
-            return 1;
-        }
-
-        static async Task<int> Delay2()
-        {
-            await Task.Delay(2000);
-            return 2;
-        }
-
-        static async Task<int> Delay3()
-        {
-            await Task.Delay(3000);
-            return 3;
+            Task winner = await (Task.WhenAny(task, Task.Delay(timeout)));
+            if (winner != task) throw new TimeoutException();
+            return await task;    // Unwrap result/re-throw
         }
     }
 }

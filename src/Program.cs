@@ -28,35 +28,29 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Go()
         {
             /*
-            事实上，C#的lock语句是包裹在try/finally语句块中的Monitor.Enter和Monitor.Exit语法糖。
-
-            如果在Monitor.Enter和try语句块之间抛出了异常（例如，调用该线程的Abort方法，或者抛出了OutOfMemoryException）那么锁的状态是不确定的。
-            但若已经获得了锁，那么这个锁就永远无法释放，因为我们已经没有机会进入try/finally代码块了。因此这种情况会造成锁泄露。
-
-            为了防范这种风险，CLR 4在设计时对Monitor.Enter进行了重载，增加了lockTaken参数。
-
-            Enter方法执行结束后，当且仅当该方法执行时抛出了异常且没有获得锁时，lockTaken为false。
-            因而从C# 4.0开始，lock语句将会翻译为以下模式（该模式较之前更加健壮）。
+            Monitor还提供了TryEnter方法来指定一个超时时间（以毫秒为单位的整数或者一个TimeSpan值）。
+            如果在指定时间内获得了锁，则该方法返回true，如果超时并且没有获得锁，该方法返回false。
+            如果不给TryEnter方法提供任何参数，且当前无法获得锁，则该方法会立即超时。
+            和Enter方法一样，TryEnter方法也在CLR 4.0中进行了重载，并在重载中接受lockTaken参数。
             */
-
             bool lockTaken = false;
-            Monitor.Enter(locker, ref lockTaken);
-            try
+            Monitor.TryEnter(locker, 1, ref lockTaken);
+            if (lockTaken)
             {
-                if (var2 != 0)
+                try
                 {
-                    Console.WriteLine("result:{0} processorID:{1}", var1 / var2, Thread.GetCurrentProcessorId());
-                }
-                else
-                {
-                    Console.WriteLine("var2 is zero, processorID:{0}", Thread.GetCurrentProcessorId());
-                }
+                    if (var2 != 0)
+                    {
+                        Console.WriteLine("result:{0} processorID:{1}", var1 / var2, Thread.GetCurrentProcessorId());
+                    }
+                    else
+                    {
+                        Console.WriteLine("var2 is zero, processorID:{0}", Thread.GetCurrentProcessorId());
+                    }
 
-                var2 = 0;
-            }
-            finally
-            {
-                if (lockTaken)
+                    var2 = 0;
+                }
+                finally
                 {
                     Monitor.Exit(locker);
                 }

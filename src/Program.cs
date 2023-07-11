@@ -5,87 +5,46 @@ namespace MyApp // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             Console.WriteLine("start, now:{0} processorID:{1}", DateTime.Now, Thread.GetCurrentProcessorId());
 
-            try
+            for (int i = 0; i < 5; i++)
             {
-                Task<int> task1 = Task.Run<int>(async () =>
-                {
-                    await Task.Delay(5000);
-                    return 5;
-                });
-
-                Task<int> task2 = Task.Run<int>(async () =>
-                {
-                    await Task.Delay(1000);
-                    throw new Exception("throw exception!");
-                });
-
-                int[] results = await TaskExt.WhenAllOrError<int>(task1, task2);
-
-                Console.WriteLine("result's num:{0} now:{1} processorID:{2}", results.Length, DateTime.Now, Thread.GetCurrentProcessorId());
+                Thread thread = new Thread(Go);
+                thread.Start();
             }
-            catch (AggregateException e)
+
+            Console.WriteLine("main thread finish, processorID:{0}", Thread.GetCurrentProcessorId());
+        }
+
+        static readonly object locker = new object();
+
+        static int var1 = 1, var2 = 1;
+
+        /// <summary>
+        /// 线程安全的方法
+        /// </summary>
+        static void Go()
+        {
+            /*
+            每一次只能有一个线程锁定同步对象（本例中的locker），而其他线程则被阻塞，直至锁释放。
+            如果参与竞争的线程多于一个，则它们需要在准备队列中排队，并以先到先得的方式获得锁。
+            排它锁会强制以所谓序列（serialized）的方式访问被锁保护的资源，因为线程之间的访问是不能重叠的。
+            */
+            lock (locker)
             {
-                Console.WriteLine("start print all exceptions");
-                foreach (var ie in e.InnerExceptions)
+                if (var2 != 0)
                 {
-                    Console.WriteLine(ie.Message);
+                    Console.WriteLine("result:{0} processorID:{1}", var1 / var2, Thread.GetCurrentProcessorId());
                 }
-                Console.WriteLine("finish print all exceptions");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("exception msg:{0}, type:{1}", e.Message, e.GetType());
-            }
-        }
-    }
-
-    internal static class TaskExt
-    {
-        public async static Task<TResult> WithTimeout<TResult>(this Task<TResult> task, int timeout)
-        {
-            Task winner = await (Task.WhenAny(task, Task.Delay(timeout)));
-            if (winner != task) throw new TimeoutException();
-            return await task;    // Unwrap result/re-throw
-        }
-
-        public static Task<TResult> WithCancellation<TResult>(this Task<TResult> task, CancellationToken cancelToken)
-        {
-            var tcs = new TaskCompletionSource<TResult>();
-            var reg = cancelToken.Register(() => tcs.TrySetCanceled());
-            task.ContinueWith(ant =>
-            {
-                reg.Dispose();
-                if (ant.IsCanceled)
-                    tcs.TrySetCanceled();
-                else if (ant.IsFaulted)
-                    tcs.TrySetException(ant.Exception.InnerException);
                 else
-                    tcs.TrySetResult(ant.Result);
-            });
-            return tcs.Task;
-        }
-
-        /*
-        以下的组合器作用与WhenAll类似，不同点在于只要有一个任务出现错误，那么最终任务也会立即出错。
-        */
-        public static async Task<TResult[]> WhenAllOrError<TResult>(params Task<TResult>[] tasks)
-        {
-            var killJoy = new TaskCompletionSource<TResult[]>();
-            foreach (var task in tasks)
-            {
-                task.ContinueWith(ant =>
                 {
-                    if (ant.IsCanceled)
-                        killJoy.TrySetCanceled();
-                    else if (ant.IsFaulted)
-                        killJoy.TrySetException(ant.Exception.InnerException);
-                });
+                    Console.WriteLine("var2 is zero, processorID:{0}", Thread.GetCurrentProcessorId());
+                }
+
+                var2 = 0;
             }
-            return await await Task.WhenAny(killJoy.Task, Task.WhenAll(tasks));
         }
     }
 }

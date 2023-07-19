@@ -9,51 +9,74 @@ namespace MyApp // Note: actual namespace depends on the project name.
         {
             Console.WriteLine("start, now:{0} processorID:{1}", DateTime.Now, Thread.GetCurrentProcessorId());
 
-            for (int i = 0; i < 5; i++)
+            /*
+            Lambda表达式或匿名方法中捕获的局部变量也可以作为同步对象进行锁定。
+            */
+            object obj = new object();
+            Action action = () =>
             {
-                Thread thread = new Thread(Go);
-                thread.Start();
-            }
+                lock (obj)
+                {
+                    // do something ...
+                }
+            };
+        }
+    }
 
-            Console.WriteLine("main thread finish, processorID:{0}", Thread.GetCurrentProcessorId());
+    internal class ThreadSafe
+    {
+        object locker = new object();
+
+        List<int> list = new List<int>();
+
+        /*
+        若一个对象在各个参与线程中都是可见的，那么该对象就可以作为同步对象。但是该对象必须是一个引用类型的对象（这是必须满足的条件）。
+        同步对象通常是私有的（因为这样便于封装锁逻辑），而且一般是实例字段或者静态字段。
+
+        锁本身不会限制同步对象的访问功能。即x.ToString()不会因为其他线程调用了lock(x)而被阻塞。
+        只有两个线程均执行lock(x)语句才会发生阻塞。
+        */
+        void SafeRun1()
+        {
+            // 引用类型的普通同步对象
+            lock (locker)
+            {
+                // do something ...
+            }
         }
 
-        static readonly object locker = new object();
-
-        static int var1 = 1, var2 = 1;
-
-        /// <summary>
-        /// 线程安全的方法
-        /// </summary>
-        static void Go()
+        /*
+        同步对象本身也可以是被保护的对象，例如：list
+        */
+        void SafeRun2()
         {
-            /*
-            Monitor还提供了TryEnter方法来指定一个超时时间（以毫秒为单位的整数或者一个TimeSpan值）。
-            如果在指定时间内获得了锁，则该方法返回true，如果超时并且没有获得锁，该方法返回false。
-            如果不给TryEnter方法提供任何参数，且当前无法获得锁，则该方法会立即超时。
-            和Enter方法一样，TryEnter方法也在CLR 4.0中进行了重载，并在重载中接受lockTaken参数。
-            */
-            bool lockTaken = false;
-            Monitor.TryEnter(locker, 1, ref lockTaken);
-            if (lockTaken)
+            // 被保护对象是同步对象
+            lock (list)
             {
-                try
-                {
-                    if (var2 != 0)
-                    {
-                        Console.WriteLine("result:{0} processorID:{1}", var1 / var2, Thread.GetCurrentProcessorId());
-                    }
-                    else
-                    {
-                        Console.WriteLine("var2 is zero, processorID:{0}", Thread.GetCurrentProcessorId());
-                    }
+                list.Add(5);
 
-                    var2 = 0;
-                }
-                finally
-                {
-                    Monitor.Exit(locker);
-                }
+                // do something ...
+            }
+        }
+
+        // 容器的对象（this）也可以做为同步对象
+        void SafeRun3()
+        {
+            lock (this)
+            {
+                // do something ...
+            }
+        }
+
+        /*
+        对象的类型也可以用作同步对象，该锁定方式有一个缺点，即无法封装锁逻辑，因此难以避免死锁或者长时间阻塞。
+        而类型上的锁甚至可以跨越（同一进程中的）应用程序域的边界。
+        */
+        void SafeRun4()
+        {
+            lock (typeof(int))
+            {
+                // do something ...
             }
         }
     }

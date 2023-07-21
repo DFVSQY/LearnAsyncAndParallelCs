@@ -7,41 +7,69 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main()
         {
-            for (int i = 1; i <= 5; i++)
+            for (int i = 0; i < 3; i++)
             {
-                int idx = i;
-                new Thread(Run).Start(idx);
+                new Thread(ReadItems).Start();
             }
+
+            new Thread(WriteItems).Start("A");
+            new Thread(WriteItems).Start("B");
         }
 
         /*
-        信号量（semaphore）就像俱乐部一样：它有特定的容量，还有门卫保护。
-        一旦满员之后，就不允许其他人进入了，人们只能在外面排队。每当有人离开时，才准许另外一个人进入。
+        通常，一个类型实例的并发读操作是线程安全的，而并发更新操作则不然。
+        虽然可以简单地使用一个排它锁来保护对实例的任何形式的访问，但是如果其读操作很多但更新操作很少，则使用单一的锁限制并发性就不太合理了。
 
-        容量为1的信号量和Mutex和lock类似，但是信号量没有持有者这个概念，它是线程无关的。
-        任何线程都可以调用Semaphore的Release方法。Mutex和lock则不然，只有持有锁的线程才能够释放锁。
+        ReaderWriterLockSlim是专门为这种情形进行设计的，它可以最大限度地保证锁的可用性。
+        ReaderWriterLockSlim是在.NET Framework 3.5中引入的。它替代了笨重的ReaderWriterLock类。
+        虽然后者具有相似的功能，但是它比前者的执行速度慢数倍，并且其本身存在一些锁升级处理机制的设计缺陷。
 
-        信号量有两个功能相似的实现：Semaphore和SemaphoreSlim。
-        后者是在.NET Framework 4.0引入的。它进行了一些优化以适应并行编程对低延迟的需求。
-        此外，它也适用于传统的多线程编程，因为它可以在等待时指定一个取消令牌。
-        它还提供了WaitAsync方法以进行异步编程，但是它不能用于进程间通信。
-        
-        Semaphore在调用WaitOne和Release方法时大概会消耗1微秒的时间，而Sem-aphoreSlim的开销只有前者的十分之一。
-        
-        信号量可用于限制并发性，防止太多的线程同时执行特定的代码。
+        与常规的lock（Monitor.Enter/Exit）相比ReaderWriterLockSlim的执行速度仍然慢一倍，但是它可以在大量的读操作和少量写操作的环境下减少锁竞争。
+
+        ReaderWriterLockSlim和ReaderWriterLock都拥有两种基本的锁，即读锁和写锁：
+            * 写锁是全局排它锁
+            * 读锁可以兼容其他的读锁
+
+        因此，一个持有写锁的线程将阻塞其他任何试图获取读锁或写锁的线程（反之亦然）。
+        但是如果没有任何线程持有写锁的话，那么其他任意数量的线程都可以并发获得读锁。
         */
-        static SemaphoreSlim sem = new SemaphoreSlim(3);
-        static void Run(object i)
+        static ReaderWriterLockSlim locker = new ReaderWriterLockSlim();
+
+        static Random rand = new Random();
+
+        static List<int> items = new List<int>();
+        static void ReadItems()
         {
-            Console.WriteLine("{0} want to enter", i);
+            while (true)
+            {
+                locker.EnterReadLock();
+                foreach (int item in items) Thread.Sleep(100);
+                locker.ExitReadLock();
+            }
+        }
 
-            sem.Wait();
-            Console.WriteLine("{0} is in", i);
+        static void WriteItems(object threadID)
+        {
+            while (true)
+            {
+                int num = GetRandomNum(100);
+                locker.EnterWriteLock();
+                items.Add(num);
+                locker.ExitWriteLock();
 
-            Thread.Sleep(1000 * (int)i);
+                Console.WriteLine("threadID:{0} num:{1}", threadID, num);
 
-            Console.WriteLine("{0} is leaving", i);
-            sem.Release();
+                Thread.Sleep(100);
+            }
+        }
+
+        static int GetRandomNum(int max)
+        {
+            lock (rand)
+            {
+                int result = rand.Next(max);
+                return result;
+            }
         }
     }
 }

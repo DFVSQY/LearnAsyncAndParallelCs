@@ -48,16 +48,45 @@ namespace MyApp // Note: actual namespace depends on the project name.
             }
         }
 
+        /*
+        有时最好能在一个原子操作中将读锁转换为写锁。例如，我们希望当列表不包含特定元素时才将这个元素添加到列表中。
+        理想情况下，我们希望尽可能缩短持有写锁（排它锁）的时间，假设可以采取如下的操作步骤：
+            1．获取一个读锁
+            2．判断该元素是否已经位于列表中，如果确已存在，则释放读锁并返回
+            3．释放读锁
+            4．获得写锁
+            5．添加该元素
+        上述操作的问题在于，另一个线程可能会在第3和第4步之间插入并修改链表（例如，添加同一个元素）。
+
+        而ReaderWriterLockSlim可以通过第三种锁来解决这个问题，称为可升级锁（upgradable lock）。
+        一个可升级锁就像读锁一样，但是它可以在随后通过一个原子操作升级为一个写锁。
+        其使用方式：
+            1．调用EnterUpgradableReadLock。
+            2．执行读操作（例如，判断该元素是否已经存在于列表中）。
+            3．调用EnterWriteLock（该操作将可升级锁转化为写锁）。
+            4．执行基于写的操作（例如，将该元素添加到列表中）。
+            5．调用ExitWriteLock（将写锁转换回可升级锁）。
+            6．执行其他读操作。
+            7．调用ExitUpgradableReadLock。
+
+        可升级锁和读锁还有一个重要的区别：虽然可升级锁可以和任意数目的读锁并存，但是一次只能获取一个可升级锁。
+        这可以将锁的升级竞争序列化从而避免在升级中出现死锁，这和SQL Server中的更新锁是一致的。
+        */
         static void WriteItems(object threadID)
         {
             while (true)
             {
                 int num = GetRandomNum(100);
-                locker.EnterWriteLock();
-                items.Add(num);
-                locker.ExitWriteLock();
 
-                Console.WriteLine("threadID:{0} num:{1}", threadID, num);
+                locker.EnterUpgradeableReadLock();
+                if (!items.Contains(num))
+                {
+                    locker.EnterWriteLock();
+                    items.Add(num);
+                    locker.ExitWriteLock();
+                    Console.WriteLine("threadID:{0} num:{1}", threadID, num);
+                }
+                locker.ExitUpgradeableReadLock();
 
                 Thread.Sleep(100);
             }

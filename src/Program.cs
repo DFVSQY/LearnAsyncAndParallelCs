@@ -23,15 +23,12 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
 
         /*
-        实现线程本地存储最简单的方式是在静态字段上附加ThreadStatic特性。
+        ThreadLocal<T>是.NET Framework 4.0中新增的类型。它对静态和实例字段都提供了线程本地存储支持，并允许指定默认值。
 
-        这样，每一个线程都会得到一个静态字段的独立副本。
-        但是，[ThreadStatic]并不支持实例字段（它对实例字段并不会产生任何作用）；
-        此外，它也不适于和字段初始化器配合使用，因为它们仅仅会在调用静态构造器的线程上执行一次。
-        如果一定要处理实例字段，或者需要使用非默认值，则更适合使用ThreadLocal<T> 。
+        此后就可以调用字段的Value属性来访问线程本地值了。
+        ThreadLocal的值是延迟计算的：其中的工厂函数会在（每一个线程）第一次调用时计算实际的值。
         */
-        [ThreadStatic]
-        static int filed;
+        static ThreadLocal<int> field = new ThreadLocal<int>(() => 5);
 
         static void Main(string[] args)
         {
@@ -43,12 +40,11 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
         private static void Run()
         {
-            filed = 5;
             for (int i = 1; i <= 10; i++)
             {
-                filed += i;
+                field.Value += i;
             }
-            Console.WriteLine("Run Result:{0}", filed);
+            Console.WriteLine("Run Result:{0}", field.Value);
         }
     }
 }

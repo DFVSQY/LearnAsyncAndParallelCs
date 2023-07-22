@@ -13,33 +13,31 @@ namespace MyApp // Note: actual namespace depends on the project name.
                 new Thread(Run).Start(id);
             }
 
-            Thread.Sleep(1000);
+            waitEvent.Wait();
 
-            waitEvent.Set();
+            Console.WriteLine("main thread finished!");
         }
 
         /*
-        ManualResetEvent的作用就像是一个大门。
-        调用Set方法就开启大门，并允许任意数目的调用WaitOne方法的线程通过大门。
-        而调用Reset方法则会关闭大门。在大门关闭时调用WaitOne方法会发生阻塞。
-        而当大门再次打开时，线程会立刻释放。除这些区别之外，ManualResetEvent的功能和AutoResetEvent是一样的。
+        CountdownEvent可用于等待多个线程。该类是在.NET Framework 4.0引入的，并同样具有高效的纯托管实现。
+        若使用该类，需要在实例化时指定需要等待的线程“计数”。
 
-        .NET 4.0引入了一种新的ManualResetEvent称为ManualResetEventSlim。
-        后者对短时期的等待进行了优化，即选择进行几个迭代的自旋操作。
-        此外，它还拥有更加高效的托管实现。
-        并支持在Wait时使用Can-cellationToken取消等待操作。但是它不能进行跨进程的信号发送。
-        ManualResetEventSlim并没有从WaitHandle派生。
-        但是它拥有一个WaitHandle属性，访问该属性将返回一个（使用传统等待句柄性能配置的）WaitHandle派生类型的对象。
+        调用Signal会使计数递减；而调用Wait则会阻塞，直至计数减为零。
 
-        ManualResetEvent适用于用一个线程来释放其他所有线程的情形，而CountdownEvent则适用于相反的情形。
+        调用AddCount方法可以重新增加CountdownEvent的计数。
+        但是如果它的计数已经降为零，则调用该方法会抛出异常：我们无法通过调用AddCount来取消Count-downEvent的信号。
+        为了避免抛出异常，还可以使用TryAddCount。
+        若计数值为0，则该方法会返回false。
+        调用Reset方法可以取消计数事件的信号：它不但取消信号，而且会将计数值重置为原始设定值。
         */
-        static ManualResetEvent waitEvent = new ManualResetEvent(false);
+        static CountdownEvent waitEvent = new CountdownEvent(5);
 
         static void Run(object id)
         {
-            Console.WriteLine("{0} waiting ...", id);
-            waitEvent.WaitOne();
-            Console.WriteLine("{0} notified", id);
+            Console.WriteLine("{0} start sleeping ...", id);
+            Thread.Sleep((int)id * 1000);
+            Console.WriteLine("{0} finish sleeping ...", id);
+            waitEvent.Signal();
         }
     }
 }

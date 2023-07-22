@@ -14,20 +14,29 @@ namespace MyApp // Note: actual namespace depends on the project name.
             }
         }
 
-        /*
-        从.NET Framework 4.0开始引入了Lazy<T>类，该类实现了延迟初始化（lazy initialization）功能。
-        如果实例化时以true为参数，则它就会使用线程安全的初始化模式。
-        
-        Lazy<T>实际上还在锁上进行了微小的优化，称为“双检锁”（doublech-ecked lock）。
-        双检锁执行一次volatile读操作，避免在对象初始化后进行锁操作。
-        
-        使用Lazy<T>时可以传入一个工厂委托方法来指明如何创建一个新的实例，同时传入第二个参数true，
-        之后就可以使用Value属性访问实例的值了
-        */
-        static Lazy<A> lazy_a = new Lazy<A>(() =>
+        static bool _isInitialized = false;
+        static object _lock = new object();
+
+        static A _a1;
+        static A a1
         {
-            return new A();
-        }, true);
+            get
+            {
+                /*
+                LazyInitializer是一个静态类。
+                它和Lazy<T>工作方式很像，但是也有以下不同点：
+                    1. 它直接使用静态方法操作自定义类型的字段。这样做可以避免引入一个间接层次，从而提高性能。它适用于一些需要极致优化的场合。
+                    2. 它提供了另一种初始化模式，多个线程可以竞争实例化过程。
+                    
+                在访问字段之前，调用LazyInitializer的EnsureInitialized方法，并传入字段的引用和工厂委托即可。
+                */
+                LazyInitializer.EnsureInitialized(ref _a1, ref _isInitialized, ref _lock, () =>
+                {
+                    return new A();
+                });
+                return _a1;
+            }
+        }
 
         static void Main(string[] args)
         {
@@ -39,7 +48,7 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
         private static void Run()
         {
-            A a = lazy_a.Value;
+            A a = a1;
         }
     }
 }

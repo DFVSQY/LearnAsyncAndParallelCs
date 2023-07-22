@@ -21,14 +21,15 @@ namespace MyApp // Note: actual namespace depends on the project name.
         但是，线程本地存储并不适合在异步代码中使用，因为有一些延续可能会运行在之前的线程上。
         */
 
+        class Test
+        {
+            /*
+            ThreadLocal<T>也支持实例字段并可以获得局部变量的值。
+            */
+            public ThreadLocal<int> field = new ThreadLocal<int>(() => 5);
+        }
 
-        /*
-        ThreadLocal<T>是.NET Framework 4.0中新增的类型。它对静态和实例字段都提供了线程本地存储支持，并允许指定默认值。
-
-        此后就可以调用字段的Value属性来访问线程本地值了。
-        ThreadLocal的值是延迟计算的：其中的工厂函数会在（每一个线程）第一次调用时计算实际的值。
-        */
-        static ThreadLocal<int> field = new ThreadLocal<int>(() => 5);
+        static Test test = new Test();
 
         static void Main(string[] args)
         {
@@ -42,9 +43,9 @@ namespace MyApp // Note: actual namespace depends on the project name.
         {
             for (int i = 1; i <= 10; i++)
             {
-                field.Value += i;
+                test.field.Value += i;
             }
-            Console.WriteLine("Run Result:{0}", field.Value);
+            Console.WriteLine("Run Result:{0}", test.field.Value);
         }
     }
 }

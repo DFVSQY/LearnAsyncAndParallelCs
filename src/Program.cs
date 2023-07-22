@@ -24,9 +24,33 @@ namespace MyApp // Note: actual namespace depends on the project name.
         class Test
         {
             /*
-            ThreadLocal<T>也支持实例字段并可以获得局部变量的值。
+            第三种实现线程本地存储的方式是使用Thread类的GetData和SetData方法。
+            这些方法会将数据存储在线程独有的“插槽”（slot）中。
+            Thread.GetData负责读取线程独有的数据存储中读取数据，而Thread.SetData则向其中写入数据。
+            这两个方法都需要使用LocalDataStoreSlot对象来获得这个插槽。
+            所有的线程都可以获得相同的插槽，但是它们的值却是互相独立的。
+
+            可以调用Thread.GetNamedDataSlot来获得一个命名插槽，这样我们就可以在整个应用程序中共享这个命名插槽了。
+            此外，还可以调用Thread.Allocate-DataSlot来创建一个匿名插槽，这样就可以自由控制插槽的使用范围。
+
+            Thread.FreeNamedDataSlot方法将释放所有线程中的命名插槽。
+            但需要注意的是，只有当LocalDataStoreSlot对象的所有引用都已经在作用域之外并被垃圾回收时插槽才会释放。
+            这确保了当线程需要特定数据插槽时，只要它保留了正确的LocalDataStoreSlot对象的引用，那么相应的数据插槽就不会丢失。
             */
-            public ThreadLocal<int> field = new ThreadLocal<int>(() => 5);
+            private LocalDataStoreSlot levelSlot = Thread.GetNamedDataSlot("test_cls_level_slot");
+
+            public int level
+            {
+                get
+                {
+                    object obj = Thread.GetData(levelSlot);
+                    return obj == null ? 0 : (int)obj;
+                }
+                set
+                {
+                    Thread.SetData(levelSlot, value);
+                }
+            }
         }
 
         static Test test = new Test();
@@ -41,11 +65,8 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
         private static void Run()
         {
-            for (int i = 1; i <= 10; i++)
-            {
-                test.field.Value += i;
-            }
-            Console.WriteLine("Run Result:{0}", test.field.Value);
+            test.level += 5;
+            Console.WriteLine("Run Result:{0}", test.level);
         }
     }
 }

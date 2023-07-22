@@ -10,25 +10,47 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
         static void Main(string[] args)
         {
-            /*
-            如果不希望等待一个句柄从而阻塞线程，还可以调用ThreadPool.RegisterWaitForSingleObject方法来将一个延续操作附加在等待句柄上。
+            waitHandle.ToTask().GetAwaiter().OnCompleted(() =>
+            {
+                Console.WriteLine("task finished");
+            });
 
-            当等待句柄接到信号时（或者超时后），委托就会在一个线程池线程中执行。之后，还需要调用Unregister解除非托管的句柄和回调之间的关系。
-            */
-            RegisteredWaitHandle reg = ThreadPool.RegisterWaitForSingleObject(waitHandle, Run, "Some Data", -1, true);
-
+            Console.WriteLine("waiting ...");
             Thread.Sleep(5000);
-
-            Console.WriteLine("start signal...");
+            Console.WriteLine("start signal ...");
             waitHandle.Set();
 
             Console.ReadLine();
-            reg.Unregister(waitHandle);
         }
 
         static void Run(object data, bool timeOut)
         {
             Console.WriteLine("start run:{0}", data);
+        }
+    }
+
+    static class WaitHandleExt
+    {
+        public static Task<bool> ToTask(this WaitHandle waitHandle, int timeout = -1)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+
+            RegisteredWaitHandle token = null;
+
+            var tokenReady = new ManualResetEventSlim();
+
+            WaitOrTimerCallback action = (state, timeOut) =>
+            {
+                tokenReady.Wait();
+                tokenReady.Dispose();
+                token.Unregister(waitHandle);
+                tcs.SetResult(!timeOut);
+            };
+
+            token = ThreadPool.RegisterWaitForSingleObject(waitHandle, action, null, timeout, true);
+            tokenReady.Set();
+
+            return tcs.Task;
         }
     }
 }

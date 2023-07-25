@@ -21,24 +21,21 @@ namespace MyApp // Note: actual namespace depends on the project name.
             */
 
             /*
-            Parallel.Invoke方法并行执行一组Action委托，然后等待它们完成。
-
-            从表面看来Parallel.Invoke就像是创建了两个绑定到线程的Task对象，然后等待它们执行结束的快捷操作。
-            但是它们存在一个重要区别：如果将一百万个委托传递给Parallel.Invoke方法，它仍然能够有效工作。
-            这是因为该方法会将大量的元素划分为若干批次，并将其分派给底层的Task，而不会单纯为每一个委托创建一个独立的Task。
+            Parallel.For和Parallel.ForEach分别等价于C#中的for和foreach循环，但是每一次迭代都是并行而非顺序执行的。
             */
-            Parallel.Invoke(
-                () =>
-                {
-                    new WebClient().DownloadFile("http://www.baidu.com", "baidu.html");
-                    Console.WriteLine("download from baidu");
-                },
-                () =>
-                {
-                    new WebClient().DownloadFile("http://www.sohu.com", "sohu.html");
-                    Console.WriteLine("download from sohu");
-                }
-            );
+
+            List<int> list = new List<int>() { 2, 5, 3, 1, 6, 0, 9, 8, 7 };
+            Parallel.For(0, list.Count, (i) =>
+            {
+                Console.WriteLine("for i:{0}", i);
+            });
+            Console.WriteLine("for finish");
+
+            Parallel.ForEach(list, (item) =>
+            {
+                Console.WriteLine("foreach item:{0}", item);
+            });
+            Console.WriteLine("foreach finish");
 
             Console.WriteLine("main thread finish!");
         }

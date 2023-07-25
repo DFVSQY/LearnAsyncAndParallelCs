@@ -9,31 +9,38 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main(string[] args)
         {
-            IEnumerable<int> numbers = Enumerable.Range(3, 100000 - 3);
+            /*
+            PFX在Parallel类中提供了三个静态方法作为结构化并行的基本形式：
+                1. Parallel.Invoke方法：并行执行一组委托。
+                2. Parallel.For方法：执行与C# for循环等价的并行方法。
+                3. Parallel.ForEach方法：执行与C#的foreach循环等价的并行方法。
+            这三个方法都会阻塞线程直到所有工作完成为止。
+            和PLINQ一样，在出现未处理异常之后，其他的工作线程将会在它们当前的迭代完成之后停止，并将异常包装为AggregateException抛出给调用者。
+
+            和PLINQ一样，Parallel.*方法是针对计算密集型任务而不是I/O密集型任务进行优化的。
+            */
 
             /*
-            PLINQ可以自动并行化本地LINQ查询。易于使用是PLINQ的优势，因为它将工作划分和结果整理的任务交给了Framework。
-            要使用PLINQ只需直接在输入序列上调用AsParallel()方法，而后和先前一样编写普通的LINQ查询即可。
+            Parallel.Invoke方法并行执行一组Action委托，然后等待它们完成。
 
-            AsParallel是System.Linq.ParallelEnumerable类的一个扩展方法，它将输入包装为一个以ParallelQuery<TSource>为基类的序列，
-            这样，后续的LINQ查询运算符就会绑定到由ParallelEnumerable定义的另外一套扩展方法上。
-            这些扩展方法为每一种标准查询运算符提供了并行化实现。
-            基本上，它们的工作原理都是将输入序列划分为小块，并将每一块在不同的线程上执行，并将执行结果整理为一个输出序列以供使用。
-
-            调用AsSequential()会将ParallelQuery序列包装解除，后续的查询运算符将会重新绑定到标准查询运算符上并顺序执行。
-            这在调用有副作用或者非线程安全的代码之前是非常必要的。
+            从表面看来Parallel.Invoke就像是创建了两个绑定到线程的Task对象，然后等待它们执行结束的快捷操作。
+            但是它们存在一个重要区别：如果将一百万个委托传递给Parallel.Invoke方法，它仍然能够有效工作。
+            这是因为该方法会将大量的元素划分为若干批次，并将其分派给底层的Task，而不会单纯为每一个委托创建一个独立的Task。
             */
-            var parallelQuery =
-              from n in numbers.AsParallel()
-              where Enumerable.Range(2, (int)Math.Sqrt(n)).All(i => n % i > 0)
-              select n;
+            Parallel.Invoke(
+                () =>
+                {
+                    new WebClient().DownloadFile("http://www.baidu.com", "baidu.html");
+                    Console.WriteLine("download from baidu");
+                },
+                () =>
+                {
+                    new WebClient().DownloadFile("http://www.sohu.com", "sohu.html");
+                    Console.WriteLine("download from sohu");
+                }
+            );
 
-            int[] primes = parallelQuery.ToArray();
-
-            foreach (int prime in primes)
-            {
-                Console.Write("{0} ", prime);
-            }
+            Console.WriteLine("main thread finish!");
         }
     }
 }

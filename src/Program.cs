@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Timers;
@@ -34,6 +35,21 @@ namespace MyApp // Note: actual namespace depends on the project name.
             Parallel.ForEach(list, (item) =>
             {
                 Console.WriteLine("foreach item:{0}", item);
+            });
+            Console.WriteLine("foreach finish");
+
+            /*
+            有些情况下，循环迭代中的索引用处很大。对于顺序执行的foreach循环中，为了线程安全，必须使用以下版本的ForEach语句。
+
+            我们必须将结果整理到一个线程安全的集合中，这是与PLINQ相比的缺点。
+            而这种方式胜过PLINQ之处在于索引化的ForEach比索引化的Select查询运算符的执行效率高。
+            ConcurrentBag是一个线程安全的集合。
+            */
+            ConcurrentBag<int> bag = new ConcurrentBag<int>();
+            Parallel.ForEach(list, (item, state, i) =>
+            {
+                bag.Add(item);
+                Console.WriteLine("foreach i:{0}", i);
             });
             Console.WriteLine("foreach finish");
 

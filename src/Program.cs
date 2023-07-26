@@ -22,38 +22,38 @@ namespace MyApp // Note: actual namespace depends on the project name.
             */
 
             /*
-            Parallel.For和Parallel.ForEach分别等价于C#中的for和foreach循环，但是每一次迭代都是并行而非顺序执行的。
-            */
+            Parallel.For()/Parallel.ForEach()循环也支持“breaking”（中断）循环并取消任何进一步迭代的操作。
+            然而，由于涉及并行执行，因此这里的“中断”表示在中断迭代之后不应开始新的迭代，但是所有当前正在执行的迭代都将继续运行完成。
 
+            当希望在循环体内部中断循环时可以调用ParallelLoopState对象的Break()或Stop()方法。
+            Break()方法指示不再需要执行索引值高于当前值的迭代；Stop()方法表明根本不需要运行更多的迭代。
+
+            例如，假设有一个Parallel.For()循环将执行10次迭代。
+            其中一些迭代可能比其他迭代运行得更快，并且任务调度程序不保证它们会以任何特定顺序运行。
+            假设迭代1已经完成；迭代3、5、7和9正在“进行中”并被安排到四个不同的线程；迭代5和7都调用Break()。
+            在这种情况下，迭代6和8就永远不会开始了，但是迭代2和4仍会被调度执行。
+            迭代3和9仍将正常运行完成，因为它们在中断发生时已经开始了。
+
+            具体详情可参考《C#本质论》。
+            */
             List<int> list = new List<int>() { 2, 5, 3, 1, 6, 0, 9, 8, 7 };
-            Parallel.For(0, list.Count, (i) =>
-            {
-                Console.WriteLine("for i:{0}", i);
-            });
-            Console.WriteLine("for finish");
-
-            Parallel.ForEach(list, (item) =>
-            {
-                Console.WriteLine("foreach item:{0}", item);
-            });
-            Console.WriteLine("foreach finish");
-
-            /*
-            有些情况下，循环迭代中的索引用处很大。对于顺序执行的foreach循环中，为了线程安全，必须使用以下版本的ForEach语句。
-
-            我们必须将结果整理到一个线程安全的集合中，这是与PLINQ相比的缺点。
-            而这种方式胜过PLINQ之处在于索引化的ForEach比索引化的Select查询运算符的执行效率高。
-            ConcurrentBag是一个线程安全的集合。
-            */
-            ConcurrentBag<int> bag = new ConcurrentBag<int>();
             Parallel.ForEach(list, (item, state, i) =>
             {
-                bag.Add(item);
-                Console.WriteLine("foreach i:{0}", i);
+                if (item == 0)
+                    state.Break();
+                else
+                    Console.Write(i);
             });
-            Console.WriteLine("foreach finish");
+            Console.WriteLine();
 
-            Console.WriteLine("main thread finish!");
+            Parallel.ForEach(list, (item, state, i) =>
+            {
+                if (item == 0)
+                    state.Stop();
+                else
+                    Console.Write(i);
+            });
+            Console.WriteLine();
         }
     }
 }

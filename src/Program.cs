@@ -11,13 +11,37 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main()
         {
             /*
-            在调用StartNew方法（或在实例化Task对象）时，可以指定一个TaskCreationOptions枚举值来调整任务的执行方式。
-            TaskCreationOptions是一个标志枚举类型。
+            当一个任务启动另一个任务时，可以使用askCreationOptions.AttachedToParent选项为它们确定父子任务关系。
 
-            LongRunning字段会通知调度器为任务指定一个线程。这种方式非常适合I/O密集型任务和长时间执行的任务。
-            如果不这样做，那么那些执行时间很短的任务反而可能需要等待很长的时间才能被调度。
+            子任务是一类特殊的任务。因为父任务必须在所有子任务结束之后才能结束。
+            而父任务结束时，子任务中发生的异常才会向上抛出。
             */
-            Task task = Task.Factory.StartNew(Run, "Hello Task", TaskCreationOptions.LongRunning);
+            Task task = Task.Factory.StartNew(
+                () =>
+                {
+                    Console.WriteLine("this is parent task");
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        Console.WriteLine("this is detached task");
+                    });
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        Console.WriteLine("this is a child task1");
+                    }, TaskCreationOptions.AttachedToParent);
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        Thread.Sleep(1000);
+                        Console.WriteLine("this is child task2");
+                        throw null;
+                    }, TaskCreationOptions.AttachedToParent);
+
+                    Thread.Sleep(5000);
+                    Console.WriteLine("parent task finish");
+                }
+            );
             task.Wait();
 
             Console.WriteLine("all finish");

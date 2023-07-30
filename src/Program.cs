@@ -11,50 +11,24 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main()
         {
             /*
-            在启动任务时，我们可以传入一个取消令牌。若通过该令牌执行取消操作，则任务本身就会进入“已取消”状态。
+            延续任务和普通任务一样，其类型也可以是Task<TResult>类型并返回数据。
+            在下面的示例中，我们将使用一串任务来计算Math.Sqrt(8 * 2)，并输出结果。
             */
-            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
-            CancellationToken token = cancellationTokenSource.Token;
-            cancellationTokenSource.CancelAfter(1000);
-
-            Task task = Task.Factory.StartNew(() =>
+            Task<double> task = Task.Factory.StartNew(() =>
             {
-                Thread.Sleep(1500);
-                token.ThrowIfCancellationRequested();
-            }, token);
-
-            try
+                return 8;
+            }).ContinueWith((task1) =>
             {
-                task.Wait();
-            }
-            catch (AggregateException ex)
+                return task1.Result * 2;
+            }).ContinueWith((task2) =>
             {
-                Console.WriteLine(ex.InnerException is TaskCanceledException);
+                return Math.Sqrt(task2.Result);
+            });
 
-                Console.WriteLine(task.IsCanceled);
-
-                Console.WriteLine(task.Status);
-            }
-
-            /*
-            TaskCanceledException是OperationCanceledException的子类。
-            如果希望显式抛出一个OperationCanceledException（而不是调用token.ThrowIfCancellation-Requested方法），
-            则必须用取消令牌作为OperationCanceledException的构造器的参数。
-            如果不这样做，那么任务就不会进入TaskStatus.Canceled状态，也不会触发标记为OnlyOnCanceled的延续任务。
-            
-            如果一个任务还没有开始就取消了，则它就不会被调度。并且该任务会立即抛出OperationCanceledException。
-
-            我们还可以将取消令牌作为其他支持取消令牌的API的参数，这样，就可以将取消操作无缝地传播出去。
-
-            Wait和CancelAndWait方法中的取消令牌参数用于取消等待操作，而不是取消任务本身。
-            */
+            task.Wait();
+            Console.WriteLine("Result:{0}", task.Result);
 
             Console.WriteLine("all finish");
-        }
-
-        static void Run(object? msg)
-        {
-            Console.WriteLine(msg);
         }
     }
 }

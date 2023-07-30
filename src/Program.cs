@@ -10,41 +10,43 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main()
         {
-            Task task1 = Task.Run(() =>
-            {
-                Thread.Sleep(1000);
-                throw null;
-            });
-
-            Task task2 = Task.Run(() =>
-            {
-                Thread.Sleep(2000);
-                throw null;
-            });
-
-            Task task3 = Task.Run(() =>
-            {
-                Thread.Sleep(3000);
-                throw null;
-            });
-
             /*
-            可以调用Task.WaitAll（等待所有任务执行结束）静态方法和Task.WaitAny（等待任意一个任务执行结束）同时等待多个任务。
-            WaitAll方法类似于轮流等待每一个任务，但是它的效率更高，因为它至多只需要进行一次上下文切换。
-            此外，如果有一个或者多个任务中抛出了未处理的异常，则WaitAll仍然会等待所有任务完成，然后再组合所有失败任务的异常，
-            重新抛出一个AggregateException（而这也是AggregateException发挥真正作用的时候）。
-            
-            以上过程相当于如何代码：
+            在启动任务时，我们可以传入一个取消令牌。若通过该令牌执行取消操作，则任务本身就会进入“已取消”状态。
             */
-            var exceptions = new List<Exception>();
-            try { task1.Wait(); } catch (AggregateException ex) { exceptions.Add(ex); }
-            try { task2.Wait(); } catch (AggregateException ex) { exceptions.Add(ex); }
-            try { task3.Wait(); } catch (AggregateException ex) { exceptions.Add(ex); }
-            if (exceptions.Count > 0) throw new AggregateException(exceptions);
+            CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken token = cancellationTokenSource.Token;
+            cancellationTokenSource.CancelAfter(1000);
+
+            Task task = Task.Factory.StartNew(() =>
+            {
+                Thread.Sleep(1500);
+                token.ThrowIfCancellationRequested();
+            }, token);
+
+            try
+            {
+                task.Wait();
+            }
+            catch (AggregateException ex)
+            {
+                Console.WriteLine(ex.InnerException is TaskCanceledException);
+
+                Console.WriteLine(task.IsCanceled);
+
+                Console.WriteLine(task.Status);
+            }
 
             /*
-            调用WaitAny相当于等待一个ManualResetEventSlim对象。这个对象会在任意一个任务完成时触发。
-            除了超时时间之外，还可以向每一个Wait方法中传入一个取消令牌来取消等待过程（而不是取消任务本身）。
+            TaskCanceledException是OperationCanceledException的子类。
+            如果希望显式抛出一个OperationCanceledException（而不是调用token.ThrowIfCancellation-Requested方法），
+            则必须用取消令牌作为OperationCanceledException的构造器的参数。
+            如果不这样做，那么任务就不会进入TaskStatus.Canceled状态，也不会触发标记为OnlyOnCanceled的延续任务。
+            
+            如果一个任务还没有开始就取消了，则它就不会被调度。并且该任务会立即抛出OperationCanceledException。
+
+            我们还可以将取消令牌作为其他支持取消令牌的API的参数，这样，就可以将取消操作无缝地传播出去。
+
+            Wait和CancelAndWait方法中的取消令牌参数用于取消等待操作，而不是取消任务本身。
             */
 
             Console.WriteLine("all finish");

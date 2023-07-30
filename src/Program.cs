@@ -10,49 +10,34 @@ namespace MyApp // Note: actual namespace depends on the project name.
     {
         static void Main()
         {
-            TaskCreationOptions options = TaskCreationOptions.AttachedToParent;
+            /*
+            在默认情况下，延续任务的调度是无条件的，即无论前导任务是否完成，是否抛出了异常抑或被取消，延续任务都会执行。
+            若想更改这个行为，可以为延续任务指定一组TaskContinuationOptions枚举值的组合。
+
+            需要特别指出的是当延续任务指定了上述标志而无法执行时，它并不会被遗忘或者丢弃，而会取消。
+            这意味着延续的任何一个任务都将执行，但指定了NotOnCanceled的延续任务除外。
+            */
+            TaskContinuationOptions OnlyOnRanToCompletion = TaskContinuationOptions.NotOnFaulted | TaskContinuationOptions.NotOnCanceled;
 
             Task task = Task.Factory.StartNew(() =>
             {
-                Task.Factory.StartNew(() =>
-                {
-                    Console.WriteLine("child task1");
-                    Thread.Sleep(1000);
-                    throw null;
-                }, options);
-
-                Task.Factory.StartNew(() =>
-                {
-                    Console.WriteLine("child task2");
-                    Thread.Sleep(3000);
-                    throw null;
-                }, options);
-
-                Task.Factory.StartNew(() =>
-                {
-                    Console.WriteLine("child task3");
-                    Thread.Sleep(5000);
-                    throw null;
-                }, options);
+                throw null;
             });
 
-            /*
-            延续任务有一个非常重要的特性：它在所有的子任务完成之后才会开始执行。
-            这时，子任务抛出的所有异常都会封送到延续任务中。
-            */
-            Task error = task.ContinueWith((t) =>
+            Task t = task.ContinueWith((t) =>
             {
-                if (t.Exception is AggregateException)
-                {
-                    AggregateException aggregate = t.Exception as AggregateException;
-                    foreach (Exception ex in aggregate.InnerExceptions)
-                    {
-                        Console.WriteLine("type:{0} msg:{1}", ex.InnerException?.GetType(), ex.InnerException?.Message);
-                    }
-                }
-            }, TaskContinuationOptions.OnlyOnFaulted);
+                Console.WriteLine("t, faulted:{0} canceled:{1}", t.IsFaulted, t.IsCanceled);
+            }, OnlyOnRanToCompletion);
 
-            error.Wait();
+            try
+            {
+                t.Wait();
+            }
+            catch (AggregateException ex)
+            {
+                // System.Threading.Tasks.TaskCanceledException
+                Console.WriteLine("t exception:{0}", ex.InnerException?.GetType());
+            }
 
             Console.WriteLine("all finish");
         }

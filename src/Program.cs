@@ -11,32 +11,47 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main()
         {
             /*
-            在默认情况下，延续任务的调度是无条件的，即无论前导任务是否完成，是否抛出了异常抑或被取消，延续任务都会执行。
-            若想更改这个行为，可以为延续任务指定一组TaskContinuationOptions枚举值的组合。
+            PLINQ、Parallel类和Task会自动将异常封送给消费者。这个操作是必不可少的。
 
-            需要特别指出的是当延续任务指定了上述标志而无法执行时，它并不会被遗忘或者丢弃，而会取消。
-            这意味着延续的任何一个任务都将执行，但指定了NotOnCanceled的延续任务除外。
+            PLINQ和Parallel类在遇到第一个异常时就会结束查询或循环的执行，不会进一步处理循环体中的其他元素。
+            但是即使这样，在当前循环完成之前也有可能抛出更多的异常。
+            若访问AggregateException的InnerException属性则只会获得第一个异常。
+
+            AggregateException类提供了Flatten方法和Handle方法简化异常的处理过程。
             */
-            TaskContinuationOptions OnlyOnRanToCompletion = TaskContinuationOptions.NotOnFaulted | TaskContinuationOptions.NotOnCanceled;
 
+            /*
+            AggregateException通常会包含其他的AggregateException。
+            例如，当子任务抛出异常的时候就会出现这种情况。
+            调用Flatten方法可以消除任意层级的嵌套以简化处理过程。
+            这个方法会返回一个新的AggregateException对象，并包含展平的内部异常列表。
+            */
             Task task = Task.Factory.StartNew(() =>
             {
-                throw null;
-            });
+                Task.Factory.StartNew(() =>
+                {
+                    Thread.Sleep(1000);
+                    throw new NullReferenceException();
+                }, TaskCreationOptions.AttachedToParent);
 
-            Task t = task.ContinueWith((t) =>
-            {
-                Console.WriteLine("t, faulted:{0} canceled:{1}", t.IsFaulted, t.IsCanceled);
-            }, OnlyOnRanToCompletion);
+                Task.Factory.StartNew(() =>
+                {
+                    Thread.Sleep(1000);
+                    throw new TimeoutException();
+                }, TaskCreationOptions.AttachedToParent);
+            });
 
             try
             {
-                t.Wait();
+                task.Wait();
             }
-            catch (AggregateException ex)
+            catch (AggregateException exception)
             {
-                // System.Threading.Tasks.TaskCanceledException
-                Console.WriteLine("t exception:{0}", ex.InnerException?.GetType());
+                var exs = exception.Flatten().InnerExceptions;
+                foreach (var ex in exs)
+                {
+                    Console.WriteLine(ex.GetType());
+                }
             }
 
             Console.WriteLine("all finish");

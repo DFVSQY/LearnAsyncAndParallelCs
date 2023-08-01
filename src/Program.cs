@@ -11,67 +11,24 @@ namespace MyApp // Note: actual namespace depends on the project name.
         static void Main()
         {
             /*
-            PLINQ、Parallel类和Task会自动将异常封送给消费者。这个操作是必不可少的。
+            .NET Framework 4.0在System.Collections.Concurrent命名空间下引入了一系列新的集合。所有这些集合都是完全线程安全的。
 
-            PLINQ和Parallel类在遇到第一个异常时就会结束查询或循环的执行，不会进一步处理循环体中的其他元素。
-            但是即使这样，在当前循环完成之前也有可能抛出更多的异常。
-            若访问AggregateException的InnerException属性则只会获得第一个异常。
+            并发集合对高并发场景进行了优化。但是它们也可以单纯作为一般的线程安全的集合使用（替代用锁保护的一般集合）。
+            但是使用时需要注意：
+                · 传统集合在非并发场景下的性能要高于并发集合。
+                · 线程安全的集合并不能保证使用它们的代码是线程安全的。
+                · 在枚举并发集合时，如果另一个线程更新了集合的内容，不会抛出任何异常。相反的，我们会得到一个新旧内容混合的结果。
+                · List<T>没有对应的并发集合。
+                · ConcurrentStack、ConcurrentQueue和ConcurrentBag类型内部是使用链表实现的。
+                
+            因此，其内存利用不如非并发的Stack和Queue高效。但是它们适用于并发访问，因为链表更容易实现无锁算法或者少锁的算法。
+            （这是因为在链表中插入一个节点只需要更新几个引用，而在一个类似List<T>的结构中插入一个元素可能需要移动数以千计的现有元素。）
+            因此，并发集合绝不仅仅是在普通集合上加了一把锁这么简单。
 
-            AggregateException类提供了Flatten方法和Handle方法简化异常的处理过程。
+            并发集合和传统集合的另一个不同在于并发集合提供了原子的检测并执行操作，例如TryPop。
+            其中大部分方法是通过IProducerConsumerCollection<T>接口统一起来的。
             */
 
-            /*
-            有时只需捕获特定类型的异常，并重新抛出其他类型的异常。
-            AggregateException类的Handle方法可以快捷实现上述功能。
-            它接受一个异常的断言并在每一个内部异常上验证该断言。
-
-            如果断言返回true，说明该异常已经得到“处理”。
-            在所有异常验证完毕之后会出现以下几种情况：
-                1. 如果所有的异常都被“处理”了（即委托返回true），则不会重新抛出异常。
-                2. 如果其中有异常的委托返回值为false（“未处理”），则会抛出一个新的Aggregate-Exception，且其中包含所有未处理的异常。
-            */
-            Task task = Task.Factory.StartNew(() =>
-            {
-                Task.Factory.StartNew(() =>
-                {
-                    Thread.Sleep(1000);
-                    throw new NullReferenceException();
-                }, TaskCreationOptions.AttachedToParent);
-
-                Task.Factory.StartNew(() =>
-                {
-                    Thread.Sleep(1000);
-                    throw new TimeoutException();
-                }, TaskCreationOptions.AttachedToParent);
-            });
-
-            try
-            {
-                try
-                {
-                    task.Wait();
-                }
-                catch (AggregateException exception)
-                {
-                    exception.Handle((e) =>
-                    {
-                        if (e.InnerException?.GetType() == typeof(TimeoutException))
-                        {
-                            Console.WriteLine("catch TimeoutException");
-                            return true;
-                        }
-                        return false;
-                    });
-                }
-            }
-            catch (AggregateException exception)
-            {
-                var exs = exception.Flatten().InnerExceptions;
-                foreach (var ex in exs)
-                {
-                    Console.WriteLine("other exception type:{0}", ex.GetType());
-                }
-            }
 
             Console.WriteLine("all finish");
         }

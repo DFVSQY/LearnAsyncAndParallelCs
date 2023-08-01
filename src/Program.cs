@@ -29,6 +29,36 @@ namespace MyApp // Note: actual namespace depends on the project name.
             其中大部分方法是通过IProducerConsumerCollection<T>接口统一起来的。
             */
 
+            /*
+            生产者/消费者集合主要有两种使用场景：
+                · 添加一个元素（“生产”）
+                · 检索一个元素并删除它（“消费”）
+                
+            栈和队列都是典型的生产者/消费者集合。
+            这种集合在并行编程中有重要的意义，因为它们有利于实现高效的无锁设计。
+            IProducerConsumerCollection<T>接口代表了一个线程安全的生产者/消费者集合。
+
+            IProducerConsumerCollection<T>扩展了ICollection接口，并添加了以下方法：
+             void CopyTo (T[] array, int index);
+             T[] ToArray();
+             bool TryAdd (T item);
+             bool TryTake (out T item);
+
+            其中TryAdd和TryTake方法会测试添加和删除操作是否可以执行，如果可以则执行该操作。
+            测试和执行是以原子方式执行的，因此无须像传统集合那样在操作时加锁。
+
+            TryTake方法在集合为空的情况下会返回false。
+            TryAdd在现有的三个实现类中都必定成功，并返回true。
+            但如果自定义的集合不允许出现重复元素（例如并发的集合），则该方法应在欲添加元素已经存在的情况下返回false。
+            
+            不同类型的TryTake方法执行的操作也各有差异：
+                · 对于ConcurrentStack类型，TryTake会删除最近添加的元素。
+                · 对于ConcurrentQueue类型，TryTake会删除最早添加的元素。
+                · 对于ConcurrentBag类型，哪个元素删除效率最高，TryTake方法就会删除那个元素。
+                
+            以上三个具体类型都显式实现了TryTake和TryAdd方法，并用更加特定的公有方法来提供相应的功能，例如TryDequeue和TryPop。
+            */
+
 
             Console.WriteLine("all finish");
         }

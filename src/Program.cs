@@ -21,10 +21,14 @@ namespace MyApp // Note: actual namespace depends on the project name.
             */
 
             /*
-            AggregateException通常会包含其他的AggregateException。
-            例如，当子任务抛出异常的时候就会出现这种情况。
-            调用Flatten方法可以消除任意层级的嵌套以简化处理过程。
-            这个方法会返回一个新的AggregateException对象，并包含展平的内部异常列表。
+            有时只需捕获特定类型的异常，并重新抛出其他类型的异常。
+            AggregateException类的Handle方法可以快捷实现上述功能。
+            它接受一个异常的断言并在每一个内部异常上验证该断言。
+
+            如果断言返回true，说明该异常已经得到“处理”。
+            在所有异常验证完毕之后会出现以下几种情况：
+                1. 如果所有的异常都被“处理”了（即委托返回true），则不会重新抛出异常。
+                2. 如果其中有异常的委托返回值为false（“未处理”），则会抛出一个新的Aggregate-Exception，且其中包含所有未处理的异常。
             */
             Task task = Task.Factory.StartNew(() =>
             {
@@ -43,14 +47,29 @@ namespace MyApp // Note: actual namespace depends on the project name.
 
             try
             {
-                task.Wait();
+                try
+                {
+                    task.Wait();
+                }
+                catch (AggregateException exception)
+                {
+                    exception.Handle((e) =>
+                    {
+                        if (e.InnerException?.GetType() == typeof(TimeoutException))
+                        {
+                            Console.WriteLine("catch TimeoutException");
+                            return true;
+                        }
+                        return false;
+                    });
+                }
             }
             catch (AggregateException exception)
             {
                 var exs = exception.Flatten().InnerExceptions;
                 foreach (var ex in exs)
                 {
-                    Console.WriteLine(ex.GetType());
+                    Console.WriteLine("other exception type:{0}", ex.GetType());
                 }
             }
 
